@@ -538,10 +538,10 @@ int main(int argc, char * argv[])
             std::cout << "simulated Reads\n";
             my_search(index, reads, searchErrors, randomtext, timer);
 
-            auto startBi = std::chrono::high_resolution_clock::now();
             std::cout << "bi Search\n";
             bi_fm_index<dna4_vector> biIndex{randomtext};
             configuration cfg = max_error{total{sE}, deletion{sE}, insertion{sE}, substitution{sE}};
+            auto startBi = std::chrono::high_resolution_clock::now();
             auto results = search(biIndex, reads, cfg);
             auto endBi = std::chrono::high_resolution_clock::now();
             elapsedbi = endBi - startBi;

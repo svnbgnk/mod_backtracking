@@ -37,7 +37,7 @@ namespace seqan3::test
 
 struct search_param
 {
-    uint8_t total, substitution, insertion, deletion;
+    uint8_t total, substitution, insertion, deletion, total_start;
 };
 
 } // namespace seqan3::detail
@@ -162,6 +162,9 @@ inline bool my_search_trivial(cursor_t cur, query_t & query, typename cursor_t::
                            search_param const error_left, ErrorCode memory,
                            delegate_t && delegate) noexcept(noexcept(delegate))
 {
+    if(query_pos < (error_left.total_start - error_left.total))
+        return false;
+
     // Exact case (end of query sequence or no errors left)
     if (query_pos == std::ranges::size(query) || error_left.total == 0)
     {
@@ -263,7 +266,9 @@ template <bool abort_on_hit, typename index_t, typename query_t, typename delega
 inline void my_search_trivial(index_t const & index, query_t & query, search_param const error_left,
                            delegate_t && delegate) noexcept(noexcept(delegate))
 {
-    my_search_trivial<abort_on_hit>(index.begin(), query, 0, error_left, ErrorCode::LAST_NOTHING, delegate);
+    search_param error_left2{error_left};
+    error_left2.total_start = error_left2.total;
+    my_search_trivial<abort_on_hit>(index.begin(), query, 0, error_left2, ErrorCode::LAST_NOTHING, delegate);
 }
 
 

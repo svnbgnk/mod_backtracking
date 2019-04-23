@@ -169,7 +169,8 @@ inline bool my_search_trivial(cursor_t cur, query_t & query, typename cursor_t::
         // Do not use insertion if there is a match.
         // Check if cursor did a step in the index.
         bool const do_insertion = cur.query_length() > 0 ? cur.last_char() != query[query_pos] : true;
-
+//         auto tmp_cur = cur;
+//         bool const do_insertion = !tmp_cur.extend_right(query[query_pos]);
         // Insertion
         // Do not allow insertions after an deletion or mismatch.
         if (do_insertion && (memory <= ErrorCode::LAST_NOTHING
@@ -186,7 +187,7 @@ inline bool my_search_trivial(cursor_t cur, query_t & query, typename cursor_t::
         }
 
         // Do not allow deletions at the beginning of the query sequence
-        if ((query_pos > 0 &&(error_left.deletion > 0) || error_left.substitution > 0) && cur.extend_right())
+        if ((query_pos > 0 && (error_left.deletion > 0) || error_left.substitution > 0) && cur.extend_right())
         {
             do
             {

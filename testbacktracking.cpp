@@ -391,7 +391,7 @@ void my_search(index_t const & index, /*queries_t */auto & queries, uint8_t erro
     endmy = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsedmy = endmy - startmy;
     timer.addMy(elapsedmy.count());
-
+/*
     std::cout << "Checking Occurrences\n";
     for(int l = 0; l < hits.size(); ++l)
     {
@@ -413,7 +413,7 @@ void my_search(index_t const & index, /*queries_t */auto & queries, uint8_t erro
             }
 
         }
-    }
+    }*/
 
     hits.clear();
     myhits.clear();

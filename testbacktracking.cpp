@@ -186,13 +186,10 @@ inline bool my_search_trivial(cursor_t cur, query_t & query, typename cursor_t::
         }
 
         // Do not allow deletions at the beginning of the query sequence
-        if (query_pos > 0 && ((error_left.deletion > 0) || error_left.substitution > 0) && cur.extend_right())
+        if ((query_pos > 0 &&(error_left.deletion > 0) || error_left.substitution > 0) && cur.extend_right())
         {
             do
             {
-                //(Do not allow deletions or mismatches at the beginning of the query sequence.)
-//                 if (query_pos > 0)
-//                 {
                     // Match (when error_left.substitution > 0) and Mismatch
                     if (error_left.substitution > 0)
                     {
@@ -206,7 +203,9 @@ inline bool my_search_trivial(cursor_t cur, query_t & query, typename cursor_t::
                         if (my_search_trivial<abort_on_hit>(cur, query, query_pos + 1, error_left2, errorCode, delegate) && abort_on_hit)
                             return true;
                     }
-
+                //(Do not allow deletions or mismatches at the beginning of the query sequence.)
+                if (query_pos > 0)
+                {
                     // Deletion
                     // Match (when error_left.substitution == 0)
                     if (error_left.substitution == 0 && cur.last_char() == query[query_pos])
@@ -232,14 +231,14 @@ inline bool my_search_trivial(cursor_t cur, query_t & query, typename cursor_t::
                             if (my_search_trivial<abort_on_hit>(cur, query, query_pos, error_left2, ErrorCode::LAST_DELETION, delegate) && abort_on_hit)
                                 return true;
                         }
-//                     }
+                    }
                 }
             } while (cur.cycle_back());
         }
         else
         {
             // Match (when error_left.substitution == 0)
-            if (cur.extend_right(query[query_pos]) || query_pos == 0)
+            if (cur.extend_right(query[query_pos]) /*|| query_pos == 0*/)
             {
                 if (my_search_trivial<abort_on_hit>(cur, query, query_pos + 1, error_left, ErrorCode::LAST_MATCH, delegate) && abort_on_hit)
                     return true;

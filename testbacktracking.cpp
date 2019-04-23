@@ -38,7 +38,7 @@ namespace seqan3::test
 
 struct search_param
 {
-    uint8_t total, substitution, insertion, deletion, total_start;
+    uint8_t total, substitution, insertion, deletion;
 };
 
 } // namespace seqan3::detail
@@ -254,9 +254,7 @@ template <bool abort_on_hit, typename index_t, typename query_t, typename delega
 inline void my_search_trivial(index_t const & index, query_t & query, search_param const error_left,
                            delegate_t && delegate) noexcept(noexcept(delegate))
 {
-    search_param error_left2{error_left};
-    error_left2.total_start = error_left2.total;
-    my_search_trivial<abort_on_hit>(index.begin(), query, 0, error_left2, ErrorCode::LAST_NOTHING, delegate);
+    my_search_trivial<abort_on_hit>(index.begin(), query, 0, error_left, ErrorCode::LAST_NOTHING, delegate);
 }
 
 
@@ -412,56 +410,7 @@ void my_search(index_t const & index, /*queries_t */auto & queries, uint8_t erro
 
     hits.clear();
     myhits.clear();
-}/*
-
-template<typename alphabet_t>
-void generateText(std::vector<alphabet_t> & text,  unsigned const length)
-{
-    uint8_t const alphabet_size = alphabet_t::value_size;
-    text.resize(length);
-    for (unsigned i = 0; i < length; ++i)
-    {
-        alphabet_t r;
-        r.assign_rank(std::rand() % alphabet_size);
-        text[i] = r;
-    }
 }
-
-template<typename alphabet_t>
-void mutateInsertion(std::vector<alphabet_t> & seq, uint8_t errors){
-    uint8_t const alphabetSize = alphabet_t::value_size;
-    uint32_t rpos = rand() % (seq.size() - 2 * errors) + errors;
-//     debug_stream << "Mutation at pos: " << rpos << "\n";
-    int rValue = rand() % alphabetSize;
-    alphabet_t cbase;
-    cbase.assign_rank(rValue);
-//     debug_stream << cbase << " -> ";
-    seq.insert(seq.begin() + rpos, cbase);
-//     debug_stream << "Insertion at pos: " << rpos << " " << cbase << "\n";
-}
-
-
-template<typename alphabet_t>
-void mutateDeletion(std::vector<alphabet_t> & seq, uint8_t errors){
-    uint32_t rpos = rand() % (seq.size() - 2 * errors) + errors;
-    seq.erase(seq.begin() + rpos);
-//     debug_stream << "Deletion at pos: " << rpos << "\n";
-}
-
-template<typename alphabet_t>
-void mutateSubstitution(std::vector<alphabet_t> & seq, uint8_t errors){
-    uint8_t const alphabetSize = alphabet_t::value_size;
-    uint32_t rpos = rand() % (seq.size() - 2 * errors) + errors;
-//     debug_stream << "Mutation at pos: " << rpos << "\n";
-    int rValue = rand() % (alphabetSize - 1);
-    alphabet_t & cbase = seq[rpos];
-//     debug_stream << cbase << " -> ";
-    int cValue = to_rank(cbase);
-    if(rValue >=  cValue)
-        ++rValue;
-    cbase.assign_rank(rValue);
-}*/
-
 
 template <Alphabet alphabet_t>
 auto generate_sequence_seqan3(size_t const len = 500,

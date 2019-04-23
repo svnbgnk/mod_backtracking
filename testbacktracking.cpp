@@ -142,11 +142,24 @@ inline void search_trivial(index_t const & index, query_t & query, search_param 
     search_trivial<abort_on_hit>(index.begin(), query, 0, error_left, delegate);
 }
 
+/*
+struct mem{
 
+    bool last_match = false;        //0
+    bool last_deletion = false;     //1
+    bool last_insertion = false;    //2
+    bool last_mismatch = false;     //3
+                                    // Nothing
+
+};*/
+
+enum class ErrorCode : std::uint8_t {
+    LAST_MATCH = 0, LAST_DELETION = 1, LAST_INSERTION = 2, LAST_MISMATCH = 3, LAST_NOTHING = 4
+};
 
 template <bool abort_on_hit, typename query_t, typename cursor_t, typename delegate_t>
 inline bool my_search_trivial(cursor_t cur, query_t & query, typename cursor_t::size_type const query_pos,
-                           search_param const error_left, bool const last_insertion, bool const last_deletion,
+                           search_param const error_left, ErrorCode memory,
                            delegate_t && delegate) noexcept(noexcept(delegate))
 {
     // Exact case (end of query sequence or no errors left)
@@ -168,7 +181,8 @@ inline bool my_search_trivial(cursor_t cur, query_t & query, typename cursor_t::
 
         // Insertion
         // Do not allow insertions after an deletion.
-        if (do_insertion && (!last_deletion || error_left.substitution == 0) && error_left.insertion > 0)
+        if (do_insertion && (memory == ErrorCode::LAST_MATCH || memory == ErrorCode::LAST_INSERTION
+            || error_left.substitution == 0) && error_left.insertion > 0)
         {
             search_param error_left2{error_left};
             error_left2.insertion--;
@@ -176,7 +190,7 @@ inline bool my_search_trivial(cursor_t cur, query_t & query, typename cursor_t::
 
             // always perform a recursive call. Abort recursion if and only if recursive call found a hit and
             // abort_on_hit is set to true.
-            if (my_search_trivial<abort_on_hit>(cur, query, query_pos + 1, error_left2, true, false, delegate) && abort_on_hit)
+            if (my_search_trivial<abort_on_hit>(cur, query, query_pos + 1, error_left2, ErrorCode::LAST_INSERTION, delegate) && abort_on_hit)
                 return true;
         }
 
@@ -193,7 +207,10 @@ inline bool my_search_trivial(cursor_t cur, query_t & query, typename cursor_t::
                     error_left2.total -= delta;
                     error_left2.substitution -= delta;
 
-                    if (my_search_trivial<abort_on_hit>(cur, query, query_pos + 1, error_left2, false, false, delegate) && abort_on_hit)
+                    ErrorCode errorCode = (delta) ? ErrorCode::LAST_MISMATCH : ErrorCode::LAST_MATCH;
+
+
+                    if (my_search_trivial<abort_on_hit>(cur, query, query_pos + 1, error_left2, errorCode, delegate) && abort_on_hit)
                         return true;
                 }
 
@@ -203,7 +220,7 @@ inline bool my_search_trivial(cursor_t cur, query_t & query, typename cursor_t::
                     // Match (when error_left.substitution == 0)
                     if (error_left.substitution == 0 && cur.last_char() == query[query_pos])
                     {
-                        if (my_search_trivial<abort_on_hit>(cur, query, query_pos + 1, error_left, false, false, delegate) &&
+                        if (my_search_trivial<abort_on_hit>(cur, query, query_pos + 1, error_left, ErrorCode::LAST_MATCH, delegate) &&
                             abort_on_hit)
                         {
                             return true;
@@ -214,14 +231,14 @@ inline bool my_search_trivial(cursor_t cur, query_t & query, typename cursor_t::
                     // arrives here, it cannot be at the end of the query and since deletions do not touch the query
                     // (i.e. increase query_pos) it won't be at the end of the query after the deletion.
                     // Do not allow deletions after an insertion.
-                    if ((!last_insertion || error_left.substitution == 0) && error_left.deletion > 0)
+                    if ((memory == ErrorCode::LAST_MATCH || memory == ErrorCode::LAST_DELETION || error_left.substitution == 0) && error_left.deletion > 0)
                     {
                         search_param error_left2{error_left};
                         error_left2.total--;
                         error_left2.deletion--;
                         if (cur.last_char() != query[query_pos])
                         {
-                            if (my_search_trivial<abort_on_hit>(cur, query, query_pos, error_left2, false, true, delegate) && abort_on_hit)
+                            if (my_search_trivial<abort_on_hit>(cur, query, query_pos, error_left2, ErrorCode::LAST_DELETION, delegate) && abort_on_hit)
                                 return true;
                         }
                     }
@@ -233,7 +250,7 @@ inline bool my_search_trivial(cursor_t cur, query_t & query, typename cursor_t::
             // Match (when error_left.substitution == 0)
             if (cur.extend_right(query[query_pos]))
             {
-                if (my_search_trivial<abort_on_hit>(cur, query, query_pos + 1, error_left, false, false, delegate) && abort_on_hit)
+                if (my_search_trivial<abort_on_hit>(cur, query, query_pos + 1, error_left, ErrorCode::LAST_MATCH, delegate) && abort_on_hit)
                     return true;
             }
         }
@@ -246,7 +263,7 @@ template <bool abort_on_hit, typename index_t, typename query_t, typename delega
 inline void my_search_trivial(index_t const & index, query_t & query, search_param const error_left,
                            delegate_t && delegate) noexcept(noexcept(delegate))
 {
-    my_search_trivial<abort_on_hit>(index.begin(), query, 0, error_left, false, false, delegate);
+    my_search_trivial<abort_on_hit>(index.begin(), query, 0, error_left, ErrorCode::LAST_NOTHING, delegate);
 }
 
 

@@ -31,6 +31,7 @@
 
 using namespace seqan3;
 using namespace std::string_literals; // for using the ""s string literal
+using namespace seqan3::search_cfg;
 
 namespace seqan3::test
 {
@@ -142,19 +143,9 @@ inline void search_trivial(index_t const & index, query_t & query, search_param 
     search_trivial<abort_on_hit>(index.begin(), query, 0, error_left, delegate);
 }
 
-/*
-struct mem{
-
-    bool last_match = false;        //0
-    bool last_deletion = false;     //1
-    bool last_insertion = false;    //2
-    bool last_mismatch = false;     //3
-                                    // Nothing
-
-};*/
 
 enum class ErrorCode : std::uint8_t {
-    LAST_MATCH = 0, LAST_DELETION = 1, LAST_INSERTION = 2, LAST_MISMATCH = 3, LAST_NOTHING = 4
+    LAST_MATCH = 0, LAST_INSERTION = 1, LAST_NOTHING = 2, LAST_DELETION = 3, LAST_MISMATCH = 4
 };
 
 template <bool abort_on_hit, typename query_t, typename cursor_t, typename delegate_t>
@@ -162,9 +153,6 @@ inline bool my_search_trivial(cursor_t cur, query_t & query, typename cursor_t::
                            search_param const error_left, ErrorCode memory,
                            delegate_t && delegate) noexcept(noexcept(delegate))
 {
-    if(query_pos < (error_left.total_start - error_left.total))
-        return false;
-
     // Exact case (end of query sequence or no errors left)
     if (query_pos == std::ranges::size(query) || error_left.total == 0)
     {
@@ -183,8 +171,8 @@ inline bool my_search_trivial(cursor_t cur, query_t & query, typename cursor_t::
         bool const do_insertion = cur.query_length() > 0 ? cur.last_char() != query[query_pos] : true;
 
         // Insertion
-        // Do not allow insertions after an deletion.
-        if (do_insertion && (memory == ErrorCode::LAST_MATCH || memory == ErrorCode::LAST_INSERTION
+        // Do not allow insertions after an deletion or mismatch.
+        if (do_insertion && (memory <= ErrorCode::LAST_NOTHING
             || error_left.substitution == 0) && error_left.insertion > 0)
         {
             search_param error_left2{error_left};
@@ -212,14 +200,14 @@ inline bool my_search_trivial(cursor_t cur, query_t & query, typename cursor_t::
 
                     ErrorCode errorCode = (delta) ? ErrorCode::LAST_MISMATCH : ErrorCode::LAST_MATCH;
 
-
                     if (my_search_trivial<abort_on_hit>(cur, query, query_pos + 1, error_left2, errorCode, delegate) && abort_on_hit)
                         return true;
                 }
 
-                // Deletion (Do not allow deletions at the beginning of the query sequence.)
+                //(Do not allow deletions at the beginning of the query sequence.)
                 if (query_pos > 0)
                 {
+                    // Deletion
                     // Match (when error_left.substitution == 0)
                     if (error_left.substitution == 0 && cur.last_char() == query[query_pos])
                     {
@@ -340,6 +328,8 @@ void my_search(index_t const & index, /*queries_t */auto & queries, uint8_t erro
 
         if(verbose)
             std::cout << "Number of backtracked positions: " << internal_hits.size() << "\n";
+
+        /*
         if(internal_hits.size() == 0){
             std::cout << k << "\n";
             debug_stream << "Something went wrong?\n";
@@ -347,8 +337,8 @@ void my_search(index_t const & index, /*queries_t */auto & queries, uint8_t erro
             for(int i = 0; i < errors; ++i)
                 debug_stream << " ";
             debug_stream << query << "\n";
-//             exit(1);
-        }
+            exit(1);
+        }*/
         for (auto const & cur : internal_hits)
         {
             for (auto const & text_pos : cur.locate())
@@ -371,7 +361,7 @@ void my_search(index_t const & index, /*queries_t */auto & queries, uint8_t erro
         test::my_search_trivial<false>(index, query, max_error, my_internal_delegate);
         if(verbose)
             std::cout << "Number of backtracked positions: " << my_internal_hits.size()  << "\t My\n";
-
+/*
         if(my_internal_hits.size() == 0){
             std::cout << k2 << "\n";
             debug_stream << "Something went wrong? My Version\n";
@@ -379,8 +369,8 @@ void my_search(index_t const & index, /*queries_t */auto & queries, uint8_t erro
             for(int i = 0; i < errors; ++i)
                 debug_stream << " ";
             debug_stream << query << "\n";
-//             exit(1);
-        }
+            exit(1);
+        }*/
         for (auto const & cur : my_internal_hits)
         {
             for (auto const & text_pos : cur.locate()){
@@ -422,7 +412,7 @@ void my_search(index_t const & index, /*queries_t */auto & queries, uint8_t erro
 
     hits.clear();
     myhits.clear();
-}
+}/*
 
 template<typename alphabet_t>
 void generateText(std::vector<alphabet_t> & text,  unsigned const length)
@@ -470,13 +460,104 @@ void mutateSubstitution(std::vector<alphabet_t> & seq, uint8_t errors){
     if(rValue >=  cValue)
         ++rValue;
     cbase.assign_rank(rValue);
+}*/
+
+
+template <Alphabet alphabet_t>
+auto generate_sequence_seqan3(size_t const len = 500,
+                              size_t const variance = 0,
+                              size_t const seed = 0)
+{
+    std::mt19937 gen(seed);
+    std::uniform_int_distribution<uint8_t> dis_alpha(0, alphabet_size_v<alphabet_t> - 1);
+    std::uniform_int_distribution<size_t> dis_length(len - variance, len + variance);
+
+    std::vector<alphabet_t> sequence;
+
+    size_t length = dis_length(gen);
+    for (size_t l = 0; l < length; ++l)
+        sequence.push_back(alphabet_t{}.assign_rank(dis_alpha(gen)));
+
+    return sequence;
+}
+
+template<Alphabet alphabet_t>
+void mutate_insertion(std::vector<alphabet_t> & seq, size_t const overlap, size_t const seed = 0){
+    std::mt19937 gen(seed);
+    std::uniform_int_distribution<uint8_t> dis_alpha(0, alphabet_size_v<alphabet_t> - 1);
+    std::uniform_int_distribution<size_t> random_pos(0, std::ranges::size(seq) - overlap);
+    alphabet_t cbase;
+    seq.insert(seq.begin() + random_pos(gen), alphabet_t{}.assign_rank(dis_alpha(gen)));
+}
+
+template<Alphabet alphabet_t>
+void mutate_deletion(std::vector<alphabet_t> & seq, size_t const overlap, size_t const seed = 0){
+    std::mt19937 gen(seed);
+    std::uniform_int_distribution<size_t> random_pos(0, std::ranges::size(seq) - overlap);
+    seq.erase(seq.begin() + random_pos(gen));
+}
+
+template<Alphabet alphabet_t>
+void mutate_substitution(std::vector<alphabet_t> & seq, size_t const overlap, size_t const seed = 0){
+    std::mt19937 gen(seed);
+    std::uniform_int_distribution<uint8_t> dis_alpha_short(0, alphabet_size_v<alphabet_t> - 2);
+    std::uniform_int_distribution<size_t> random_pos(0, std::ranges::size(seq) - overlap);
+    alphabet_t & cbase = seq[random_pos(gen)];
+    uint8_t crank = to_rank(cbase);
+    uint8_t rrank = dis_alpha_short(gen);
+    if (rrank >=  crank)
+        ++rrank;
+    cbase.assign_rank(rrank);
+}
+
+template<Alphabet alphabet_t>
+auto generate_reads(std::vector<alphabet_t> & ref,
+                    size_t const number_of_reads,
+                    size_t const read_length,
+                    size_t const simulated_errors,
+                    float const prob_insertion,
+                    float const prob_deletion,
+                    size_t const seed = 0)
+{
+    std::vector<std::vector<alphabet_t> > reads;
+    std::mt19937 gen(seed);
+    std::uniform_int_distribution<size_t> seeds (0, SIZE_MAX);
+    std::uniform_int_distribution<size_t> random_pos(simulated_errors, std::ranges::size(ref) - read_length - simulated_errors);
+    std::uniform_real_distribution<double> probability(0.0, 1.0);
+    for (size_t i = 0; i < number_of_reads; ++i){
+        size_t rpos = random_pos(gen);
+        std::vector<alphabet_t> read_tmp{ref.begin() + rpos,
+            ref.begin() + rpos + read_length + simulated_errors};
+        for (size_t j = 0; j < simulated_errors; ++j)
+        {
+            double prob = probability(gen);
+            //Substitution
+            if (prob_insertion + prob_deletion < prob)
+            {
+                mutate_substitution(read_tmp, simulated_errors, seeds(gen));
+            }
+            //Insertion
+            else if (prob_insertion < prob)
+            {
+                mutate_insertion(read_tmp, simulated_errors, seeds(gen));
+            }
+            //Deletion
+            else
+            {
+                mutate_deletion(read_tmp, simulated_errors, seeds(gen));
+            }
+        }
+        read_tmp.erase(read_tmp.begin() + read_length, read_tmp.end());
+        reads.push_back(read_tmp);
+    }
+    return reads;
 }
 
 int main(int argc, char * argv[])
 {
     Timer timer;
-    int simulatedErrors = 2;
-    int searchErrors = 2;
+//     int simulatedErrors = 2;
+    int searchErrors = 3;
 //     uint32_t olength = 600;
     uint32_t olength = 100;
 //     uint32_t olength = 40;
@@ -485,79 +566,90 @@ int main(int argc, char * argv[])
     int length = olength;
     int iterationText = 1;
 //     int numberofReads = 20;
-    int numberofReads = 600;
+    int numberofReads = 60;
 //     int numberofReads = 250;
     int indexSize = 100'000;
     length += searchErrors * 2 + indexSize;
 
+    std::chrono::duration<double> elapsedbi;
 //     srand (time(NULL));
-    for(int sE = 0; sE <= searchErrors; ++sE){
-        std::cout << "simulated Errors " << sE << "\n";
+    for(uint8_t sE = 0; sE <= searchErrors; ++sE){
+        std::cout << "simulated Errors " << (int)sE << "\n";
         for(int t = 0; t < iterationText; ++t){
-            dna4_vector randomtext{};
-            generateText(randomtext, length);
+//             dna4_vector randomtext{};
+//             generateText(randomtext, length);
+            dna4_vector randomtext = generate_sequence_seqan3<seqan3::dna4>(length);
 
-//             debug_stream << "start of random Text: " << (randomtext | view::take(olength + searchErrors * 2)) << "\n"/* << text_view << "\n"*/;
             fm_index<dna4_vector> index{randomtext};
             std::cout << "built Index\n";
 
-            std::vector<dna4_vector> reads;
-
-        //      dna4_vector query{text_view.begin(), text_view.end()};
-            for(int i = 0; i < numberofReads; ++i){
-                uint32_t rpos = rand() % indexSize;
-//                 uint32_t rpos = 0;
-                dna4_vector query_tmp{randomtext.begin() + rpos, randomtext.begin() + rpos + olength + searchErrors * 2};
-//                 dna4_vector query_tmp = query;
-                for(int j = 0; j < sE; ++j)
-                {
-                    //Substitution
-                    float prob = (float) rand()/RAND_MAX;
-                    if(probI + probD < prob)
-                    {
-                        mutateSubstitution(query_tmp, searchErrors);
-                    }
-                    //Insertion
-                    else if(probI < prob)
-                    {
-                        mutateInsertion(query_tmp, searchErrors);
-                    }
-                    //Deletion
-                    else
-                    {
-                        mutateDeletion(query_tmp, searchErrors);
-                    }
-                }
-        //         std::cout << "searchErrors: " << searchErrors << " olength: " << olength << "\n";
-        //         std::span text_view{std::data(query_tmp) + searchErrors, olength + searchErrors};
-        //         dna4_vector read2{text_view.begin(), text_view.end()};
-                dna4_vector read{query_tmp.begin() + searchErrors, query_tmp.begin() + olength + searchErrors};
-//                 debug_stream << "Read length: " << read.size() << "\n";
-        //         debug_stream << "Read2 length: " << read2.size() << "\n";
-        //         debug_stream << read << "\n";
-
-                reads.push_back(read);
-            }
-
+            std::vector<dna4_vector> reads = generate_reads(randomtext, numberofReads, olength, sE, probI, probD);
         //     std::span text_view{std::data(query) + searchErrors, olength + searchErrors};
         //     dna4_vector read{text_view.begin(), text_view.end()};
             std::cout << "simulated Reads\n";
             my_search(index, reads, searchErrors, randomtext, timer);
+
+            auto startBi = std::chrono::high_resolution_clock::now();
+            std::cout << "bi Search\n";
+            bi_fm_index<dna4_vector> biIndex{randomtext};
+            configuration cfg = max_error{total{sE}, deletion{sE}, insertion{sE}, substitution{sE}};
+            auto results = search(biIndex, reads, cfg);
+            auto endBi = std::chrono::high_resolution_clock::now();
+            elapsedbi = endBi - startBi;
+
         }
 
-        std::cout << "Default Time: " << timer.defaultTime << "\n";
-        std::cout << "My Time: " << timer.myTime << "\n";
+        std::cout << "Default Time: \t\t" << timer.defaultTime << "\n";
+        std::cout << "My Time: \t\t" << timer.myTime << "\n";
+        std::cout << "Bi Search Time: \t" << elapsedbi.count() << "\n";//elapsedmy.count()
     }
 
-    /*
-    configuration const cfg = search_cfg::max_error{search_cfg::total{3},
-                                                search_cfg::substitution{3},
-                                                search_cfg::insertion{3},
-                                                search_cfg::deletion{3}};
-                                                */
+    indexSize = 0;
+    probI = 0.33;
+    probD = 0.33;
+    olength = 50;
+    length = olength + searchErrors * 2;
+    numberofReads = 100;
 
+    std::cout << "Checking\n";
+    bool did_not_find_every_read{false};
+    for(size_t t = 0; t < 50; ++t){
+        for(uint8_t e = searchErrors; e <= searchErrors; ++e){
 
+            dna4_vector randomtext = generate_sequence_seqan3<seqan3::dna4>(length);
+            fm_index<dna4_vector> index{randomtext};
+            std::vector<dna4_vector> reads = generate_reads(randomtext, numberofReads, olength, e, probI, probD);
 
+            uint8_t tmpe = searchErrors;
+            test::search_param max_error{tmpe, tmpe, tmpe, tmpe};
+            std::vector<typename fm_index<dna4_vector>::cursor_type> my_internal_hits;
+            auto my_internal_delegate = [&my_internal_hits, &max_error](auto const & cur)
+            {
+                my_internal_hits.push_back(cur);
+        //         for (auto const & pos : cur.locate())
+        //             debug_stream << pos << ' ';
+            };
+
+//             std::cout << "simulated Errors " << (int)e << "\n";
+//             std::cout << "search Errors " << searchErrors << "\n";
+            for(auto & read : reads)
+            {
+                test::my_search_trivial<false>(index, read, max_error, my_internal_delegate);
+//                 auto results = search(index, read, cfg);
+//                 std::cout << "Size: " << my_internal_hits.size() << "\n";
+                if(my_internal_hits.size() == 0){
+                    debug_stream << "Print sequences\n";
+                    debug_stream << randomtext << "\n";
+                    for(int i = 0; i < searchErrors; ++i)
+                        debug_stream << " ";
+                    debug_stream << read << "\n";
+                    did_not_find_every_read = true;
+                    return 1;
+                }
+                my_internal_hits.clear();
+            }
+        }
+    }
 
     std::cout << "fin\n";
     return 0;

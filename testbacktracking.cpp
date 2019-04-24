@@ -350,7 +350,7 @@ void my_search(index_t const & index, /*queries_t */auto & queries, uint8_t erro
     end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
     timer.addDefault(elapsed.count());
-    std::cout << "Searched normal\n";
+//     std::cout << "Searched normal\n";
     startmy = std::chrono::high_resolution_clock::now();
     int k2 = 0;
     auto startDefault = std::chrono::high_resolution_clock::now();
@@ -515,7 +515,7 @@ int main(int argc, char * argv[])
     int length = olength;
     int iterationText = 1;
 //     int numberofReads = 20;
-    int numberofReads = 60;
+    int numberofReads = 100;
 //     int numberofReads = 250;
     int indexSize = 100'000;
     length += searchErrors * 2 + indexSize;
@@ -526,19 +526,20 @@ int main(int argc, char * argv[])
     std::cout << "Search reads with up to " << (int)searchErrors << " Errors." << "\n";
     for(uint8_t sE = 0; sE <= searchErrors; ++sE){
         Timer timer;
-        std::cout << "Simulated reads with " << (int)sE << " Errors." << "\n";
+        std::cout << "Simulate reads with " << (int)sE << " Errors." << "\n";
         for(int t = 0; t < iterationText; ++t){
 //             dna4_vector randomtext{};
 //             generateText(randomtext, length);
             dna4_vector randomtext = generate_sequence_seqan3<seqan3::dna4>(length);
 
             fm_index<dna4_vector> index{randomtext};
-            std::cout << "Built Index\n";
+//             std::cout << "Built Index\n";
 
             std::vector<dna4_vector> reads = generate_reads(randomtext, numberofReads, olength, sE, probI, probD);
         //     std::span text_view{std::data(query) + searchErrors, olength + searchErrors};
         //     dna4_vector read{text_view.begin(), text_view.end()};
             std::cout << "Simulated Reads\n";
+            std::cout << "Search Reads\n";
             my_search(index, reads, searchErrors, randomtext, timer);
 
 
@@ -560,10 +561,10 @@ int main(int argc, char * argv[])
 
         }
 
-        std::cout << "Default Time: \t\t" << timer.defaultTime << "\n";
-        std::cout << "My Time: \t\t" << timer.myTime << "\n";
-        std::cout << "Uni Search Time: \t" << elapseduni.count() << "\n";
-        std::cout << "Bi Search Time: \t" << elapsedbi.count() << "\n\n";//elapsedmy.count()
+//         std::cout << "Uni Search Time: \t\t" << timer.defaultTime << "\n";
+        std::cout << "My Uni Search Time: \t" << timer.myTime << "s\n";
+        std::cout << "Uni Search Time: \t" << elapseduni.count() << "s\n";
+        std::cout << "Bi Search Time: \t" << elapsedbi.count() << "s\n\n";//elapsedmy.count()
     }
 
     indexSize = 0;

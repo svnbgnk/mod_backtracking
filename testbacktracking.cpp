@@ -166,7 +166,9 @@ inline bool my_search_trivial(cursor_t cur, query_t & query, typename cursor_t::
     // Approximate case
     else
     {
-        // Do not use insertion if there is a match.
+        // Do not use insertion if current char is the same as previous   AAAA not AAAA
+        //                                                                IAAA not AIAA
+        // Cannot check for match since the insertion alignment was not enumerated as is the case for deletion
         // Check if cursor did a step in the index.
         bool const do_insertion = cur.query_length() > 0 ? cur.last_char() != query[query_pos] : true;
 
@@ -222,16 +224,14 @@ inline bool my_search_trivial(cursor_t cur, query_t & query, typename cursor_t::
                     // arrives here, it cannot be at the end of the query and since deletions do not touch the query
                     // (i.e. increase query_pos) it won't be at the end of the query after the deletion.
                     // Do not allow deletions after an insertion.
-                    if ((memory == ErrorCode::LAST_MATCH || memory == ErrorCode::LAST_DELETION || error_left.substitution == 0) && error_left.deletion > 0)
+                    if ((memory == ErrorCode::LAST_MATCH || memory == ErrorCode::LAST_DELETION || error_left.substitution == 0) &&
+                        error_left.deletion > 0 && cur.last_char() != query[query_pos])
                     {
                         search_param error_left2{error_left};
                         error_left2.total--;
                         error_left2.deletion--;
-                        if (cur.last_char() != query[query_pos])
-                        {
-                            if (my_search_trivial<abort_on_hit>(cur, query, query_pos, error_left2, ErrorCode::LAST_DELETION, delegate) && abort_on_hit)
-                                return true;
-                        }
+                        if (my_search_trivial<abort_on_hit>(cur, query, query_pos, error_left2, ErrorCode::LAST_DELETION, delegate) && abort_on_hit)
+                            return true;
 //                     }
                 }
             } while (cur.cycle_back());
@@ -504,7 +504,7 @@ auto generate_reads(std::vector<alphabet_t> & ref,
 
 int main(int argc, char * argv[])
 {
-    Timer timer;
+    
 //     int simulatedErrors = 2;
     int searchErrors = 3;
 //     uint32_t olength = 600;
@@ -520,9 +520,11 @@ int main(int argc, char * argv[])
     int indexSize = 100'000;
     length += searchErrors * 2 + indexSize;
 
+    std::chrono::duration<double> elapseduni;
     std::chrono::duration<double> elapsedbi;
 //     srand (time(NULL));
     for(uint8_t sE = 0; sE <= searchErrors; ++sE){
+        Timer timer;
         std::cout << "simulated Errors " << (int)sE << "\n";
         for(int t = 0; t < iterationText; ++t){
 //             dna4_vector randomtext{};
@@ -538,9 +540,18 @@ int main(int argc, char * argv[])
             std::cout << "simulated Reads\n";
             my_search(index, reads, searchErrors, randomtext, timer);
 
+            
+            std::cout << "uni Search\n";
+            uint8_t et = searchErrors;
+            configuration cfg = max_error{total{et}, deletion{et}, insertion{et}, substitution{et}};
+            auto startUni = std::chrono::high_resolution_clock::now();
+            auto resultsuni = search(index, reads, cfg);
+            auto endUni = std::chrono::high_resolution_clock::now();
+            elapseduni = endUni - startUni;
+            
             std::cout << "bi Search\n";
             bi_fm_index<dna4_vector> biIndex{randomtext};
-            configuration cfg = max_error{total{sE}, deletion{sE}, insertion{sE}, substitution{sE}};
+//             configuration cfg = max_error{total{sE}, deletion{sE}, insertion{sE}, substitution{sE}};
             auto startBi = std::chrono::high_resolution_clock::now();
             auto results = search(biIndex, reads, cfg);
             auto endBi = std::chrono::high_resolution_clock::now();
@@ -550,6 +561,7 @@ int main(int argc, char * argv[])
 
         std::cout << "Default Time: \t\t" << timer.defaultTime << "\n";
         std::cout << "My Time: \t\t" << timer.myTime << "\n";
+        std::cout << "Uni Search Time: \t" << elapseduni.count() << "\n";
         std::cout << "Bi Search Time: \t" << elapsedbi.count() << "\n";//elapsedmy.count()
     }
 

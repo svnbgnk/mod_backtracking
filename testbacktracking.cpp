@@ -355,7 +355,7 @@ void my_search(index_t const & index, /*queries_t */auto & queries, uint8_t erro
     end = std::chrono::high_resolution_clock::now();
     std::chrono::duration<double> elapsed = end - start;
     timer.addDefault(elapsed.count());
-    std::cout << "Searched normal\n";
+//     std::cout << "Searched normal\n";
     startmy = std::chrono::high_resolution_clock::now();
     int k2 = 0;
     auto startDefault = std::chrono::high_resolution_clock::now();
@@ -509,7 +509,7 @@ auto generate_reads(std::vector<alphabet_t> & ref,
 
 int main(int argc, char * argv[])
 {
-    
+
 //     int simulatedErrors = 2;
     int searchErrors = 3;
 //     uint32_t olength = 600;
@@ -520,7 +520,7 @@ int main(int argc, char * argv[])
     int length = olength;
     int iterationText = 1;
 //     int numberofReads = 20;
-    int numberofReads = 60;
+    int numberofReads = 100;
 //     int numberofReads = 250;
     int indexSize = 100'000;
     length += searchErrors * 2 + indexSize;
@@ -528,33 +528,35 @@ int main(int argc, char * argv[])
     std::chrono::duration<double> elapseduni;
     std::chrono::duration<double> elapsedbi;
 //     srand (time(NULL));
+    std::cout << "Search reads with up to " << (int)searchErrors << " Errors." << "\n";
     for(uint8_t sE = 0; sE <= searchErrors; ++sE){
         Timer timer;
-        std::cout << "simulated Errors " << (int)sE << "\n";
+        std::cout << "Simulate reads with " << (int)sE << " Errors." << "\n";
         for(int t = 0; t < iterationText; ++t){
 //             dna4_vector randomtext{};
 //             generateText(randomtext, length);
             dna4_vector randomtext = generate_sequence_seqan3<seqan3::dna4>(length);
 
             fm_index<dna4_vector> index{randomtext};
-            std::cout << "built Index\n";
+//             std::cout << "Built Index\n";
 
             std::vector<dna4_vector> reads = generate_reads(randomtext, numberofReads, olength, sE, probI, probD);
         //     std::span text_view{std::data(query) + searchErrors, olength + searchErrors};
         //     dna4_vector read{text_view.begin(), text_view.end()};
-            std::cout << "simulated Reads\n";
+            std::cout << "Simulated Reads\n";
+            std::cout << "Search Reads\n";
             my_search(index, reads, searchErrors, randomtext, timer);
 
-            
-            std::cout << "uni Search\n";
+
+//             std::cout << "uni Search\n";
             uint8_t et = searchErrors;
             configuration cfg = max_error{total{et}, deletion{et}, insertion{et}, substitution{et}};
             auto startUni = std::chrono::high_resolution_clock::now();
             auto resultsuni = search(index, reads, cfg);
             auto endUni = std::chrono::high_resolution_clock::now();
             elapseduni = endUni - startUni;
-            
-            std::cout << "bi Search\n";
+
+//             std::cout << "bi Search\n";
             bi_fm_index<dna4_vector> biIndex{randomtext};
 //             configuration cfg = max_error{total{sE}, deletion{sE}, insertion{sE}, substitution{sE}};
             auto startBi = std::chrono::high_resolution_clock::now();
@@ -564,10 +566,10 @@ int main(int argc, char * argv[])
 
         }
 
-        std::cout << "Default Time: \t\t" << timer.defaultTime << "\n";
-        std::cout << "My Time: \t\t" << timer.myTime << "\n";
-        std::cout << "Uni Search Time: \t" << elapseduni.count() << "\n";
-        std::cout << "Bi Search Time: \t" << elapsedbi.count() << "\n";//elapsedmy.count()
+//         std::cout << "Uni Search Time: \t\t" << timer.defaultTime << "\n";
+        std::cout << "My Uni Search Time: \t" << timer.myTime << "s\n";
+        std::cout << "Uni Search Time: \t" << elapseduni.count() << "s\n";
+        std::cout << "Bi Search Time: \t" << elapsedbi.count() << "s\n\n";//elapsedmy.count()
     }
 
     indexSize = 0;

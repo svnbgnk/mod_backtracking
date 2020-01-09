@@ -38,7 +38,7 @@
 
 using namespace seqan3;
 
-template <Alphabet alphabet_t>
+template <typename alphabet_t>
 auto generate_sequence(size_t const len = 500,
                               size_t const variance = 0,
                               size_t const seed = 0)
@@ -71,7 +71,7 @@ struct options
     uint32_t repeats{20};
 };
 
-template <Alphabet alphabet_t>
+template <typename alphabet_t>
 void mutate_insertion(std::vector<alphabet_t> & seq, size_t const overlap, size_t const seed)
 {
     std::mt19937_64 gen{seed};
@@ -80,7 +80,7 @@ void mutate_insertion(std::vector<alphabet_t> & seq, size_t const overlap, size_
     seq.insert(std::ranges::begin(seq) + random_pos(gen), alphabet_t{}.assign_rank(dis_alpha(gen)));
 }
 
-template <Alphabet alphabet_t>
+template <typename alphabet_t>
 void mutate_deletion(std::vector<alphabet_t> & seq, size_t const overlap, size_t const seed)
 {
     std::mt19937_64 gen{seed};
@@ -88,7 +88,7 @@ void mutate_deletion(std::vector<alphabet_t> & seq, size_t const overlap, size_t
     seq.erase(std::ranges::begin(seq) + random_pos(gen));
 }
 
-template <Alphabet alphabet_t>
+template <typename alphabet_t>
 void mutate_substitution(std::vector<alphabet_t> & seq, size_t const overlap, size_t const seed)
 {
     std::mt19937_64 gen{seed};
@@ -102,7 +102,7 @@ void mutate_substitution(std::vector<alphabet_t> & seq, size_t const overlap, si
     cbase.assign_rank(rrank);
 }
 
-template <Alphabet alphabet_t>
+template <typename alphabet_t>
 std::vector<std::vector<alphabet_t>> generate_reads(std::vector<alphabet_t> const & ref,
                                                     size_t const number_of_reads,
                                                     size_t const read_length,
